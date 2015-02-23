@@ -46,4 +46,27 @@ void glnx_real_set_prefix_error_from_errno (GError     **error,
                                             const char  *format,
                                             ...) G_GNUC_PRINTF (3,4);
 
+/**
+ * GLNX_ESYSCALL:
+ * @glnx_syscall: System call name
+ * @glnx_cleanup: Typically a "goto out;" statement
+ * @...: System call arguments
+ *
+ * Perform a standard system call, handling `EINTR`.  If the function
+ * returns `-1`, set the #GError named `error`, and invoke the code
+ * for @glnx_cleanup.
+ */
+#define GLNX_ESYSCALL(glnx_syscall, glnx_cleanup, ...)               \
+  (({                                                                \
+      long __result;                                                 \
+      do __result = (long) glnx_syscall (__VA_ARGS__);               \
+      while (G_UNLIKELY (__result == -1L && errno == EINTR));        \
+      if (G_UNLIKELY (__result == -1L))                              \
+        {                                                            \
+          glnx_set_error_from_errno (error);                         \
+          glnx_cleanup;                                              \
+        }                                                            \
+      __result;                                                      \
+    }))
+
 G_END_DECLS
