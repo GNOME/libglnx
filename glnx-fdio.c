@@ -719,8 +719,11 @@ glnx_file_replace_contents_with_perms_at (int                   dfd,
   /* If a mode was forced, override umask */
   if (mode != (mode_t) -1)
     {
-      glnx_set_error_from_errno (error);
-      goto out;
+      if (fchmod (fd, mode) != 0)
+        {
+          glnx_set_error_from_errno (error);
+          goto out;
+        }
     }
 
   if (renameat (dfd, tmppath, dfd, subpath) != 0)
