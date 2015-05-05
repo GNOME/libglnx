@@ -44,6 +44,21 @@
 
 #define newa(t, n) ((t*) alloca(sizeof(t)*(n)))
 
+/**
+ * glnx_make_lock_file:
+ * @dfd: Directory file descriptor (if not `AT_FDCWD`, must have lifetime `>=` @out_lock)
+ * @p: Path
+ * @operation: one of `LOCK_SH`, `LOCK_EX`, `LOCK_UN`, as passed to flock()
+ * @out_lock: (out) (caller allocates): Return location for lock
+ * @error: Error
+ *
+ * Block until a lock file named @p (relative to @dfd) can be created,
+ * using the flags in @operation, returning the lock data in the
+ * caller-allocated location @out_lock.
+ *
+ * This API wraps new-style process locking if available, otherwise
+ * falls back to BSD locks.
+ */
 gboolean
 glnx_make_lock_file(int dfd, const char *p, int operation, GLnxLockFile *out_lock, GError **error) {
         gboolean ret = FALSE;
@@ -130,20 +145,6 @@ glnx_make_lock_file(int dfd, const char *p, int operation, GLnxLockFile *out_loc
         ret = TRUE;
  out:
         return ret;
-}
-
-gboolean glnx_make_lock_file_for(int dfd, const char *p, int operation, GLnxLockFile *ret, GError **error) {
-        const char *fn;
-        char *t;
-
-        g_return_val_if_fail(p != NULL, FALSE);
-        g_return_val_if_fail(ret != NULL, FALSE);
-        fn = glnx_basename(p);
-
-        t = newa(char, strlen(p) + 2 + 4 + 1);
-        stpcpy(stpcpy(stpcpy(mempcpy(t, p, fn - p), ".#"), fn), ".lck");
-
-        return glnx_make_lock_file(dfd, t, operation, ret, error);
 }
 
 void glnx_release_lock_file(GLnxLockFile *f) {

@@ -34,7 +34,6 @@ typedef struct GLnxLockFile {
 } GLnxLockFile;
 
 gboolean glnx_make_lock_file(int dfd, const char *p, int operation, GLnxLockFile *ret, GError **error);
-gboolean glnx_make_lock_file_for(int dfd, const char *p, int operation, GLnxLockFile *ret, GError **error);
 void glnx_release_lock_file(GLnxLockFile *f);
 
 G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GLnxLockFile, glnx_release_lock_file)
