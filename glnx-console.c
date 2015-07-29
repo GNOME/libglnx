@@ -1,6 +1,7 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*-
  *
  * Copyright (C) 2013,2014,2015 Colin Walters <walters@verbum.org>
+ * Copyright (C) 2015 Red Hat, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -32,6 +33,9 @@
 static char *current_text = NULL;
 static gint current_percent = -1;
 static gboolean locked;
+
+/* Used by the signal handler.  */
+static volatile gboolean signal_stdout_is_tty;
 
 static gboolean
 stdout_is_tty (void)
@@ -239,14 +243,17 @@ void
 glnx_console_reset_color (gboolean from_signal)
 {
   static char const reset_sequence[] = "\x1b[0m";
-  if (!stdout_is_tty ())
-    return;
-
   if (! from_signal)
-    fputs (reset_sequence, stdout);
+    {
+      if (!stdout_is_tty ())
+        return;
+      fputs (reset_sequence, stdout);
+    }
   else
     {
       size_t written = 0;
+      if (! signal_stdout_is_tty)
+        return;
       while (written < sizeof reset_sequence - 1)
         {
           int ret = write (STDOUT_FILENO, reset_sequence + written,
@@ -261,7 +268,7 @@ glnx_console_reset_color (gboolean from_signal)
 static void
 color_signal_handler (int sig)
 {
-  color_signal_handler (TRUE);
+  glnx_console_reset_color (TRUE);
 
   /* Restore the default handler, and report the signal again.  */
   signal (sig, SIG_DFL);
@@ -302,6 +309,7 @@ glnx_console_install_signal_handlers (void)
 #endif
     };
 
+  signal_stdout_is_tty = stdout_is_tty ();
   for (j = 0; j < sizeof (sig) / sizeof (*sig); j++)
     {
 #if HAVE_SIGACTION
