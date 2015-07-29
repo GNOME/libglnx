@@ -29,6 +29,24 @@ struct GLnxConsoleRef {
   gboolean is_tty;
 };
 
+typedef enum {
+  GLNX_COLOR_STYLE_REGULAR          = (1 << 0),
+  GLNX_COLOR_STYLE_BOLD             = (1 << 1),
+  GLNX_COLOR_STYLE_UNDERLINE        = (1 << 2),
+  GLNX_COLOR_STYLE_HIGH_INTENSITY   = (1 << 3),
+} GlnxColorStyle;
+
+typedef enum {
+  GLNX_COLOR_BLACK = 0,
+  GLNX_COLOR_RED = 1,
+  GLNX_COLOR_GREEN = 2,
+  GLNX_COLOR_YELLOW = 3,
+  GLNX_COLOR_BLUE = 4,
+  GLNX_COLOR_PURPLE = 5,
+  GLNX_COLOR_CYAN = 6,
+  GLNX_COLOR_WHITE = 7,
+} GlnxColor;
+
 typedef struct GLnxConsoleRef GLnxConsoleRef;
 
 void	 glnx_console_lock (GLnxConsoleRef *ref);
@@ -41,6 +59,11 @@ void	 glnx_console_unlock (GLnxConsoleRef *ref);
 guint    glnx_console_lines (void);
 
 guint    glnx_console_columns (void);
+
+void     glnx_console_set_color (GlnxColor fg, GlnxColorStyle fg_style,
+                         GlnxColor bg, GlnxColorStyle bg_style);
+void     glnx_console_reset_color (gboolean from_signal);
+void     glnx_console_install_signal_handlers (void);
 
 static inline void
 glnx_console_ref_cleanup (GLnxConsoleRef *p)
