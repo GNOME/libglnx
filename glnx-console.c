@@ -1,6 +1,7 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*-
  *
  * Copyright (C) 2013,2014,2015 Colin Walters <walters@verbum.org>
+ * Copyright (C) 2015 Red Hat, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -32,6 +33,9 @@
 static char *current_text = NULL;
 static gint current_percent = -1;
 static gboolean locked;
+
+/* Used by the signal handler.  */
+static volatile gboolean signal_stdout_is_tty;
 
 static gboolean
 stdout_is_tty (void)
@@ -175,6 +179,150 @@ printpad (const char *padbuf,
   for (i = 0; i < d; i++)
     fwrite (padbuf, 1, padbuf_len, stdout);
   fwrite (padbuf, 1, r, stdout);
+}
+
+/**
+ * glnx_console_set_color:
+ * @fg: Foreground color
+ * @fg_style: Foreground style
+ * @bg: Background color
+ * @bg_style: Background style
+ *
+ * On a tty, set the output color to @fg and background @bg.  Allow
+ * modifiers for the foreground and the background respectively
+ * through %fg_style and %bg_style.
+ *
+ */
+void
+glnx_console_set_color (GlnxColor fg, GlnxColorStyle fg_style,
+                        GlnxColor bg, GlnxColorStyle bg_style)
+{
+  char buffer[32];
+  if (!stdout_is_tty ())
+    return;
+
+  if (fg_style)
+    {
+      int mod = 0;
+      int color = fg + 30;
+
+      if (fg_style & GLNX_COLOR_STYLE_BOLD)
+          mod = 1;
+      if (fg_style & GLNX_COLOR_STYLE_UNDERLINE)
+          mod = 4;
+      if (fg_style & GLNX_COLOR_STYLE_HIGH_INTENSITY)
+          color = fg + 90;
+
+      sprintf (buffer, "\x1B[%i;%im", mod, color);
+      fprintf (stdout, buffer);
+      fflush (stdout);
+    }
+  if (bg_style)
+    {
+      int color;
+
+      if (bg_style & GLNX_COLOR_STYLE_HIGH_INTENSITY)
+        color = bg + 100;
+      else
+        color = bg + 90;
+
+      sprintf (buffer, "\x1B[%im", color);
+      fprintf (stdout, buffer);
+      fflush (stdout);
+    }
+}
+
+/**
+ * glnx_console_reset_color:
+ * @from_signal: Specify if the function is called from a signal.
+ *
+ * On a tty, reset the foreground and background colors.
+ *
+ */
+void
+glnx_console_reset_color (gboolean from_signal)
+{
+  static char const reset_sequence[] = "\x1b[0m";
+  if (! from_signal)
+    {
+      if (!stdout_is_tty ())
+        return;
+      fputs (reset_sequence, stdout);
+    }
+  else
+    {
+      size_t written = 0;
+      if (! signal_stdout_is_tty)
+        return;
+      while (written < sizeof reset_sequence - 1)
+        {
+          int ret = write (STDOUT_FILENO, reset_sequence + written,
+                           sizeof reset_sequence - 1 - written);
+          if (ret < 0)
+            return;
+          written += ret;
+        }
+    }
+}
+
+static void
+color_signal_handler (int sig)
+{
+  glnx_console_reset_color (TRUE);
+
+  /* Restore the default handler, and report the signal again.  */
+  signal (sig, SIG_DFL);
+  raise (sig);
+}
+
+/**
+ * glnx_console_install_signal_handlers:
+ * @from_signal: Install the handler to reset the console colors
+ * on a signal.
+ *
+ */
+void
+glnx_console_install_signal_handlers (void)
+{
+  int j;
+#if HAVE_SIGACTION
+  struct sigaction act;
+#endif
+  int const sig[] =
+    {
+      SIGTSTP,
+      SIGALRM, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM,
+#ifdef SIGPOLL
+      SIGPOLL,
+#endif
+#ifdef SIGPROF
+      SIGPROF,
+#endif
+#ifdef SIGVTALRM
+      SIGVTALRM,
+#endif
+#ifdef SIGXCPU
+      SIGXCPU,
+#endif
+#ifdef SIGXFSZ
+      SIGXFSZ,
+#endif
+    };
+
+  signal_stdout_is_tty = stdout_is_tty ();
+  for (j = 0; j < sizeof (sig) / sizeof (*sig); j++)
+    {
+#if HAVE_SIGACTION
+      sigaction (sig[j], NULL, &act);
+      if (act.sa_handler != SIG_IGN)
+        {
+          act.sa_handler = color_signal_handler;
+          sigaction (sig[j], &act, NULL);
+        }
+#else
+      signal (sig[j], color_signal_handler);
+#endif
+    }
 }
 
 /**
