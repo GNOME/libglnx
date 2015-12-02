@@ -68,7 +68,7 @@ glnx_opendirat (int             dfd,
   int ret = glnx_opendirat_with_errno (dfd, path, follow);
   if (ret == -1)
     {
-      glnx_set_prefix_error_from_errno (error, "%s", "openat");
+      glnx_set_prefix_error_from_errno (error, "%s: path: %s", "openat", path);
       return FALSE;
     }
   *out_fd = ret;
