@@ -329,7 +329,7 @@ glnx_gen_temp_name (gchar *tmpl)
 /**
  * glnx_mkdtempat:
  * @dfd: Directory fd
- * @tmpl: (type filename): template directory name
+ * @tmpl: (type filename): template directory name, last 6 characters will be replaced
  * @mode: permissions to create the temporary directory with
  * @error: Error
  *
