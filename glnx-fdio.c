@@ -60,17 +60,35 @@ rename_file_noreplace_at (int olddirfd, const char *oldpath,
                           gboolean ignore_eexist,
                           GError **error)
 {
-  if (renameat2 (olddirfd, oldpath, newdirfd, newpath, RENAME_NOREPLACE) < 0)
+  struct stat st_buf;
+
+  if (fstatat(newdirfd, newpath, &st_buf, 0) < 0)
+    {
+      if(errno != ENOENT)
+        {
+          glnx_set_error_from_errno (error);
+          return FALSE;
+        }
+    }
+  else if (ignore_eexist)
+    {
+      (void) unlinkat (olddirfd, oldpath, 0);
+      return TRUE;
+    }
+  else
+    {
+      // set errno to emulate renameat2() behaviour
+      errno = EEXIST;
+      glnx_set_error_from_errno (error);
+      return FALSE;
+    }
+
+  if (renameat (olddirfd, oldpath, newdirfd, newpath) < 0)
     {
       if (errno == EINVAL || errno == ENOSYS)
         {
           /* Fall through */
           ;
-        }
-      else if (errno == EEXIST && ignore_eexist)
-        {
-          (void) unlinkat (olddirfd, oldpath, 0);
-          return TRUE;
         }
       else
         {
