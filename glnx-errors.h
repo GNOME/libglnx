@@ -63,10 +63,19 @@ glnx_throw (GError **error, const char *fmt, ...)
 static inline gboolean
 glnx_throw_errno (GError **error)
 {
+  /* Save the value of errno, in case one of the
+   * intermediate function calls happens to set it.
+   */
   int errsv = errno;
   g_set_error_literal (error, G_IO_ERROR,
                        g_io_error_from_errno (errsv),
                        g_strerror (errsv));
+  /* We also restore the value of errno, since that's
+   * what was done in a long-ago libgsystem commit
+   * https://git.gnome.org/browse/libgsystem/commit/?id=ed106741f7a0596dc8b960b31fdae671d31d666d
+   * but I certainly can't remember now why I did that.
+   */
+  errno = errsv;
   return FALSE;
 }
 
@@ -94,6 +103,8 @@ glnx_throw_errno_prefix (GError **error, const char *fmt, ...)
   va_start (args, fmt);
   glnx_real_set_prefix_error_from_errno_va (error, errsv, fmt, args);
   va_end (args);
+  /* See comment above about preserving errno */
+  errno = errsv;
   return FALSE;
 }
 
