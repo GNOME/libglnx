@@ -68,7 +68,7 @@ void glnx_real_set_prefix_error_va (GError     *error,
  * ```
  * */
 static inline gboolean G_GNUC_PRINTF (2,3)
-glnx_throw_prefix (GError **error, const char *fmt, ...)
+glnx_prefix_error (GError **error, const char *fmt, ...)
 {
   if (error == NULL)
     return FALSE;
@@ -80,9 +80,9 @@ glnx_throw_prefix (GError **error, const char *fmt, ...)
   return FALSE;
 }
 
-/* Like `glnx_throw_prefix ()`, but returns %NULL. */
-#define glnx_null_throw_prefix(error, args...) \
-  ({glnx_throw_prefix (error, args); NULL;})
+/* Like `glnx_prefix_error ()`, but returns %NULL. */
+#define glnx_prefix_error_null(error, args...) \
+  ({glnx_prefix_error (error, args); NULL;})
 
 /* Set @error using the value of `g_strerror (errno)`.
  *
