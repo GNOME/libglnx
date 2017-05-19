@@ -53,7 +53,7 @@ typedef struct {
   int fd;
   char *path;
 } GLnxTmpfile;
-#define GLNX_TMPFILE_INIT { .src_dfd = -1 };
+#define GLNX_TMPFILE_INIT { .fd = -1 };
 void glnx_tmpfile_clear (GLnxTmpfile *tmpf);
 G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GLnxTmpfile, glnx_tmpfile_clear);
 
