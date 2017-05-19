@@ -150,8 +150,6 @@ glnx_renameat2_exchange (int olddirfd, const char *oldpath,
 void
 glnx_tmpfile_clear (GLnxTmpfile *tmpf)
 {
-  if (tmpf->src_dfd == -1)
-    return;
   if (tmpf->fd == -1)
     return;
   (void) close (tmpf->fd);
@@ -247,7 +245,7 @@ glnx_link_tmpfile_at (GLnxTmpfile *tmpf,
   const gboolean replace = (mode == GLNX_LINK_TMPFILE_REPLACE);
   const gboolean ignore_eexist = (mode == GLNX_LINK_TMPFILE_NOREPLACE_IGNORE_EXIST);
 
-  g_return_val_if_fail (tmpf->src_dfd >= 0, FALSE);
+  g_return_val_if_fail (tmpf->fd >= 0, FALSE);
 
   /* Unlike the original systemd code, this function also supports
    * replacing existing files.
