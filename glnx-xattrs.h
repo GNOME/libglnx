@@ -50,6 +50,12 @@ glnx_dfd_name_set_all_xattrs (int            dfd,
                               GError       **error);
 
 gboolean
+glnx_dfd_name_drop_all_xattrs (int            dfd,
+                               const char    *name,
+                               GCancellable  *cancellable,
+                               GError       **error);
+
+gboolean
 glnx_fd_set_all_xattrs (int            fd,
                         GVariant      *xattrs,
                         GCancellable  *cancellable,

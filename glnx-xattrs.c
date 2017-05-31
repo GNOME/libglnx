@@ -356,6 +356,83 @@ glnx_fd_set_all_xattrs (int            fd,
   return TRUE;
 }
 
+static gboolean
+drop_all_xattrs_for_path (const char    *path,
+                          GCancellable  *cancellable,
+                          GError       **error)
+{
+  gboolean ret = FALSE;
+  ssize_t bytes_read;
+  glnx_free char *xattr_names = NULL;
+  const char *xname = NULL;
+
+  bytes_read = llistxattr (path, NULL, 0);
+
+  if (bytes_read < 0)
+    {
+      if (errno != ENOTSUP)
+        {
+          glnx_set_prefix_error_from_errno (error, "%s", "llistxattr");
+          goto out;
+        }
+    }
+  else if (bytes_read > 0)
+    {
+      xattr_names = g_malloc (bytes_read);
+      if (llistxattr (path, xattr_names, bytes_read) < 0)
+        {
+          glnx_set_prefix_error_from_errno (error, "%s", "llistxattr");
+          goto out;
+        }
+      xname = xattr_names;
+      while(bytes_read > 0)
+        {
+          if (lremovexattr(path, xname) < 0)
+            {
+              glnx_set_prefix_error_from_errno (error, "%s", "removexattr");
+              goto out;
+            }
+	  bytes_read -= strlen(xname) + 1;
+	  xname += strlen(xname) + 1;
+        }
+    }
+
+  ret = TRUE;
+ out:
+  return ret;
+}
+
+/**
+ * glnx_dfd_name_drop_all_xattrs:
+ * @dfd: Parent directory file descriptor
+ * @name: File name
+ * @cancellable: Cancellable
+ * @error: Error
+ *
+ * Drop a;; extended attributes for the file named @name residing in
+ * directory @dfd.
+ */
+gboolean
+glnx_dfd_name_drop_all_xattrs (int            dfd,
+                              const char    *name,
+                              GCancellable  *cancellable,
+                              GError       **error)
+{
+  if (dfd == AT_FDCWD || dfd == -1)
+    {
+      return drop_all_xattrs_for_path (name, cancellable, error);
+    }
+  else
+    {
+      char buf[PATH_MAX];
+      /* A workaround for the lack of lsetxattrat(), thanks to Florian Weimer:
+       * https://mail.gnome.org/archives/ostree-list/2014-February/msg00017.html
+       */
+      snprintf (buf, sizeof (buf), "/proc/self/fd/%d/%s", dfd, name);
+      return drop_all_xattrs_for_path (buf, cancellable, error);
+    }
+}
+
 /**
  * glnx_lgetxattrat:
  * @dfd: Directory file descriptor
