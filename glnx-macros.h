@@ -111,5 +111,29 @@ G_BEGIN_DECLS
 
 #endif /* ifndef G_IN_SET */
 
+/* Cleaner one-liner method to iterate over a GHashTable without polluting your
+ * scope (or having to introduce a new one). I.e. rather than
+ *
+ *   gpointer k, v;
+ *   GHashTableIter it;
+ *   g_hash_table_iter_init (&it, ht);
+ *   while (g_hash_table_iter_next (&it, &k, &v)) {
+ *      ...
+ *   }
+ *
+ * you can simply do
+ *
+ *   GLNX_HASH_TABLE_FOREACH(my_hash_table, it, k, v) {
+ *     // use it, k, and v as usual
+ *   }
+ *
+ * `it`, `k`, and `v` are scoped to within the for loop. All variables are
+ * allocated on the stack, as usual. Though note that `it` is already a pointer
+ * to a GHashTableIter.
+ */
+#define GLNX_HASH_TABLE_FOREACH(ht, it, k, v)                                \
+    for (gpointer k, v, it = ({ gpointer p = alloca(sizeof(GHashTableIter)); \
+                                g_hash_table_iter_init (p, ht); p; });       \
+         g_hash_table_iter_next (it, &k, &v);)
 
 G_END_DECLS
