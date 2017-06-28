@@ -60,6 +60,11 @@ void glnx_tmpfile_clear (GLnxTmpfile *tmpf);
 G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GLnxTmpfile, glnx_tmpfile_clear);
 
 gboolean
+glnx_open_anonymous_tmpfile (int flags,
+                             GLnxTmpfile *out_tmpf,
+                             GError **error);
+
+gboolean
 glnx_open_tmpfile_linkable_at (int dfd,
                                const char *subpath,
                                int flags,
