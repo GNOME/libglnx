@@ -52,6 +52,7 @@ const char *glnx_basename (const char *path)
 
 typedef struct {
   gboolean initialized;
+  gboolean anonymous;
   int src_dfd;
   int fd;
   char *path;
