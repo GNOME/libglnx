@@ -205,6 +205,11 @@ glnx_open_tmpfile_linkable_at (int dfd,
     return glnx_throw_errno_prefix (error, "open(O_TMPFILE)");
   if (fd != -1)
     {
+      /* Workaround for https://sourceware.org/bugzilla/show_bug.cgi?id=17523
+       * See also https://github.com/ostreedev/ostree/issues/991
+       */
+      if (fchmod (fd, 0600) < 0)
+        return glnx_throw_errno_prefix (error, "fchmod");
       out_tmpf->initialized = TRUE;
       out_tmpf->src_dfd = dfd; /* Copied; caller must keep open */
       out_tmpf->fd = glnx_steal_fd (&fd);
