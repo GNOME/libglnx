@@ -164,11 +164,6 @@ glnx_file_copy_at (int                   src_dfd,
                    GCancellable         *cancellable,
                    GError              **error);
 
-gboolean
-glnx_stream_fstat (GFileDescriptorBased *stream,
-                   struct stat          *stbuf,
-                   GError              **error);
-
 int glnx_renameat2_noreplace (int olddirfd, const char *oldpath,
                               int newdirfd, const char *newpath);
 int glnx_renameat2_exchange (int olddirfd, const char *oldpath,
@@ -224,8 +219,29 @@ glnx_fstat (int           fd,
             GError      **error)
 {
   if (TEMP_FAILURE_RETRY (fstat (fd, buf)) != 0)
-    return glnx_throw_errno (error);
+    return glnx_throw_errno_prefix (error, "fstat");
+  return TRUE;
+}
 
+/**
+ * glnx_fchmod:
+ * @fd: FD
+ * @mode: Mode
+ * @error: Return location for a #GError, or %NULL
+ *
+ * Wrapper around fchmod() which adds #GError support and ensures that it
+ * retries on %EINTR.
+ *
+ * Returns: %TRUE on success, %FALSE otherwise
+ * Since: UNRELEASED
+ */
+static inline gboolean
+glnx_fchmod (int           fd,
+             mode_t        mode,
+             GError      **error)
+{
+  if (TEMP_FAILURE_RETRY (fchmod (fd, mode)) != 0)
+    return glnx_throw_errno_prefix (error, "fchmod");
   return TRUE;
 }
 
