@@ -84,6 +84,18 @@ glnx_prefix_error (GError **error, const char *fmt, ...)
 #define glnx_prefix_error_null(error, args...) \
   ({glnx_prefix_error (error, args); NULL;})
 
+typedef struct {
+  const char *prefix;
+  GError **error;
+} GLnxAutoErrorPrefix;
+static inline void
+glnx_cleanup_auto_prefix_error (GLnxAutoErrorPrefix *prefix)
+{
+  g_prefix_error (prefix->error, "%s: ", prefix->prefix);
+}
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GLnxAutoErrorPrefix, glnx_cleanup_auto_prefix_error)
+#define GLNX_AUTO_PREFIX_ERROR(text, error) g_auto(GLnxAutoErrorPrefix) _glnxautoprefixerror = { text, error }
+
 /* Set @error using the value of `g_strerror (errno)`.
  *
  * This function returns %FALSE so it can be used conveniently in a single
