@@ -31,9 +31,6 @@
 #include <sys/ioctl.h>
 #include <sys/sendfile.h>
 #include <errno.h>
-/* See linux.git/fs/btrfs/ioctl.h */
-#define BTRFS_IOCTL_MAGIC 0x94
-#define BTRFS_IOC_CLONE _IOW(BTRFS_IOCTL_MAGIC, 9, int)
 
 #include <glnx-fdio.h>
 #include <glnx-dirfd.h>
@@ -654,13 +651,6 @@ copy_symlink_at (int                   src_dfd,
  * conveniently fit in with the rest of libglnx.
  */
 
-static int btrfs_reflink(int infd, int outfd) {
-        g_return_val_if_fail(infd >= 0, -1);
-        g_return_val_if_fail(outfd >= 0, -1);
-
-        return ioctl (outfd, BTRFS_IOC_CLONE, infd);
-}
-
 /* Like write(), but loop until @nbytes are written, or an error
  * occurs.
  *
@@ -703,8 +693,8 @@ glnx_loop_write(int fd, const void *buf, size_t nbytes)
   return 0;
 }
 
-/* Read from @fdf until EOF, writing to @fdt.  If @try_reflink is %TRUE,
- * attempt to use any "reflink" functionality; see e.g. https://lwn.net/Articles/331808/
+/* Read from @fdf until EOF, writing to @fdt.  This will use
+ * the generic Linux copy_file_range() syscall if available.
  *
  * The file descriptor @fdf must refer to a regular file.
  *
@@ -712,23 +702,16 @@ glnx_loop_write(int fd, const void *buf, size_t nbytes)
  * On error, this function returns `-1` and @errno will be set.
  */
 int
-glnx_regfile_copy_bytes (int fdf, int fdt, off_t max_bytes, gboolean try_reflink)
+glnx_regfile_copy_bytes (int fdf, int fdt, off_t max_bytes)
 {
+  /* Last updates from systemd as of commit 6bda23dd6aaba50cf8e3e6024248cf736cc443ca */
+  static int have_cfr = -1; /* -1 means unknown */
+  bool try_cfr = have_cfr != 0;
   bool try_sendfile = true;
-  int r;
 
   g_return_val_if_fail (fdf >= 0, -1);
   g_return_val_if_fail (fdt >= 0, -1);
   g_return_val_if_fail (max_bytes >= -1, -1);
-
-  /* Try btrfs reflinks first. */
-  if (try_reflink && max_bytes == (off_t) -1)
-    {
-      r = btrfs_reflink(fdf, fdt);
-      if (r >= 0)
-        return 0;
-      /* Fall through */
-    }
 
   while (TRUE)
     {
@@ -739,6 +722,37 @@ glnx_regfile_copy_bytes (int fdf, int fdt, off_t max_bytes, gboolean try_reflink
         {
           if ((off_t) m > max_bytes)
             m = (size_t) max_bytes;
+        }
+
+      /* First try copy_file_range(), unless we already tried.  Note this is an
+       * inlined version of try_copy_file_range() from systemd upstream, which
+       * works better since we use POSIX errno style.
+       */
+      if (try_cfr)
+        {
+          n = copy_file_range (fdf, NULL, fdt, NULL, m, 0u);
+          if (n < 0)
+            {
+              if (errno == ENOSYS)
+                {
+                  have_cfr = 0;
+                  try_cfr = false;
+                  /* use fallback below */
+                }
+              else
+                return -1;
+            }
+          else
+            {
+              if (have_cfr == -1)
+                have_cfr = 1;
+
+              if (n == 0) /* EOF */
+                break;
+              else
+                /* Success! */
+                goto next;
+            }
         }
 
       /* First try sendfile(), unless we already tried */
@@ -776,7 +790,7 @@ glnx_regfile_copy_bytes (int fdf, int fdt, off_t max_bytes, gboolean try_reflink
     next:
       if (max_bytes != (off_t) -1)
         {
-          g_assert(max_bytes >= n);
+          g_assert_cmpint (max_bytes, >=, n);
           max_bytes -= n;
           if (max_bytes == 0)
             break;
@@ -867,7 +881,7 @@ glnx_file_copy_at (int                   src_dfd,
       goto out;
     }
 
-  r = glnx_regfile_copy_bytes (src_fd, dest_fd, (off_t) -1, TRUE);
+  r = glnx_regfile_copy_bytes (src_fd, dest_fd, (off_t) -1);
   if (r < 0)
     {
       glnx_set_error_from_errno (error);
