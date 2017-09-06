@@ -296,6 +296,51 @@ glnx_fstatat (int           dfd,
 }
 
 /**
+ * GLnxOptionalStat:
+ * @exists: Set to `TRUE` iff file exists
+ * @stbuf: Stat buffer
+ *
+ * Used by glnx_fstatat_or_noent().
+ */
+typedef struct {
+  gboolean exists;
+  struct stat stbuf;
+} GLnxOptionalStat;
+
+/**
+ * glnx_fstatat_or_noent:
+ * @dfd: Directory FD to stat beneath
+ * @path: Path to stat beneath @dfd
+ * @buf: (out caller-allocates): Return location for stat details
+ * @flags: Flags to pass to fstatat()
+ * @error: Return location for a #GError, or %NULL
+ *
+ * Like glnx_fstatat(), but handles `ENOENT` in a non-error way; this function
+ * returns a `GLnxOptionalStat` that also says whether or not the file exists.
+ * One could think of this as Option<struct stat> in Rust terms.
+ *
+ * Returns: %TRUE on success, %FALSE otherwise
+ * Since: UNRELEASED
+ */
+static inline gboolean
+glnx_fstatat_or_noent (int               dfd,
+                       const char       *path,
+                       GLnxOptionalStat *out_buf,
+                       int               flags,
+                       GError          **error)
+{
+  if (TEMP_FAILURE_RETRY (fstatat (dfd, path, &out_buf->stbuf, flags)) != 0)
+    {
+      if (errno != ENOENT)
+        return glnx_throw_errno_prefix (error, "fstatat(%s)", path);
+      out_buf->exists = FALSE;
+    }
+  else
+    out_buf->exists = TRUE;
+  return TRUE;
+}
+
+/**
  * glnx_renameat:
  *
  * Wrapper around renameat() which adds #GError support and ensures that it

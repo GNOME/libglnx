@@ -189,6 +189,26 @@ test_stdio_file (void)
   g_assert_no_error (local_error);
 }
 
+static void
+test_fstatat (void)
+{
+  g_autoptr(GError) local_error = NULL;
+  GError **error = &local_error;
+  GLnxOptionalStat optstat;
+
+  if (!glnx_fstatat_or_noent (AT_FDCWD, ".", &optstat, 0, error))
+    goto out;
+  g_assert (optstat.exists);
+  g_assert_no_error (local_error);
+  if (!glnx_fstatat_or_noent (AT_FDCWD, "nosuchfile", &optstat, 0, error))
+    goto out;
+  g_assert (!optstat.exists);
+  g_assert_no_error (local_error);
+
+ out:
+  g_assert_no_error (local_error);
+}
+
 int main (int argc, char **argv)
 {
   int ret;
@@ -199,6 +219,7 @@ int main (int argc, char **argv)
   g_test_add_func ("/stdio-file", test_stdio_file);
   g_test_add_func ("/renameat2-noreplace", test_renameat2_noreplace);
   g_test_add_func ("/renameat2-exchange", test_renameat2_exchange);
+  g_test_add_func ("/fstat", test_fstatat);
 
   ret = g_test_run();
 
