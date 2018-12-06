@@ -86,7 +86,6 @@ glnx_shutil_rm_rf_at (int                   dfd,
 {
   dfd = glnx_dirfd_canonicalize (dfd);
 
-
   /* With O_NOFOLLOW first */
   glnx_autofd int target_dfd =
     openat (dfd, path, O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
@@ -101,13 +100,16 @@ glnx_shutil_rm_rf_at (int                   dfd,
       else if (errsv == ENOTDIR || errsv == ELOOP)
         {
           if (unlinkat (dfd, path, 0) != 0)
-            return glnx_throw_errno_prefix (error, "unlinkat");
+            return glnx_throw_errno_prefix (error, "unlinkat(%s)", path);
         }
       else
         return glnx_throw_errno_prefix (error, "open(%s)", path);
     }
   else
     {
+      const char *errprefix = glnx_strjoina ("Removing ", path);
+      GLNX_AUTO_PREFIX_ERROR(errprefix, error);
+
       g_auto(GLnxDirFdIterator) dfd_iter = { 0, };
       if (!glnx_dirfd_iterator_init_take_fd (&target_dfd, &dfd_iter, error))
         return FALSE;
