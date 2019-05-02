@@ -13,6 +13,8 @@ build:
     - cd _build
     - ninja
     - meson test
+    # Run it again! This previously did not work.
+    - meson test
   artifacts:
     when: on_failure
     name: "libglnx-${CI_COMMIT_REF_NAME}-${CI_JOB_NAME}"
