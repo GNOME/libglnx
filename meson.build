@@ -9,6 +9,7 @@ project(
     'c_std=gnu99',
     'warning_level=2',
   ],
+  meson_version : '>=0.53.0',
 )
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
