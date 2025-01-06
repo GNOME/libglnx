@@ -321,6 +321,8 @@ glnx_open_anonymous_tmpfile (int          flags,
                                            error);
 }
 
+static const char proc_self_fd_slash[] = "/proc/self/fd/";
+
 /* Use this after calling glnx_open_tmpfile_linkable_at() to give
  * the file its final name (link into place).
  */
@@ -367,8 +369,8 @@ glnx_link_tmpfile_at (GLnxTmpfile *tmpf,
   else
     {
       /* This case we have O_TMPFILE, so our reference to it is via /proc/self/fd */
-      char proc_fd_path[strlen("/proc/self/fd/") + DECIMAL_STR_MAX(tmpf->fd) + 1];
-      snprintf (proc_fd_path, sizeof (proc_fd_path), "/proc/self/fd/%i", tmpf->fd);
+      char proc_fd_path[sizeof (proc_self_fd_slash) + DECIMAL_STR_MAX(tmpf->fd)];
+      snprintf (proc_fd_path, sizeof (proc_fd_path), "%s%i", proc_self_fd_slash, tmpf->fd);
 
       if (replace)
         {
@@ -455,8 +457,8 @@ glnx_tmpfile_reopen_rdonly (GLnxTmpfile *tmpf,
   else
     {
       /* This case we have O_TMPFILE, so our reference to it is via /proc/self/fd */
-      char proc_fd_path[strlen("/proc/self/fd/") + DECIMAL_STR_MAX(tmpf->fd) + 1];
-      snprintf (proc_fd_path, sizeof (proc_fd_path), "/proc/self/fd/%i", tmpf->fd);
+      char proc_fd_path[sizeof (proc_self_fd_slash) + DECIMAL_STR_MAX(tmpf->fd)];
+      snprintf (proc_fd_path, sizeof (proc_fd_path), "%s%i", proc_self_fd_slash, tmpf->fd);
 
       if (!glnx_openat_rdonly (AT_FDCWD, proc_fd_path, TRUE, &rdonly_fd, error))
         return FALSE;
