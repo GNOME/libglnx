@@ -97,7 +97,7 @@ glnx_throw_errno (GError **error)
                        g_strerror (errsv));
   /* We also restore the value of errno, since that's
    * what was done in a long-ago libgsystem commit
-   * https://git.gnome.org/browse/libgsystem/commit/?id=ed106741f7a0596dc8b960b31fdae671d31d666d
+   * https://gitlab.gnome.org/Archive/libgsystem/-/commit/ed106741f7a0596dc8b960b31fdae671d31d666d
    * but I certainly can't remember now why I did that.
    */
   errno = errsv;
