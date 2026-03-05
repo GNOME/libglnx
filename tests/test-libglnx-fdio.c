@@ -29,6 +29,125 @@
 
 #include "libglnx-testlib.h"
 
+static void
+test_close (void)
+{
+  g_autoptr(GError) error = NULL;
+  int errsv;
+  int fd = -2;
+  int fd_borrowed;
+
+  g_test_summary ("Exercise glnx_close_fd");
+
+  /* Closing a non-fd is a no-op, and preserves errno.
+   * EILSEQ is an arbitrary valid value of errno that is unlikely
+   * to be set accidentally as a side-effect of I/O. */
+  g_test_message ("Closing a non-fd is a no-op and preserves errno...");
+  errno = EILSEQ;
+  glnx_close_fd (&fd);
+  errsv = errno;
+  g_assert_cmpint (fd, ==, -1);
+  g_assert_cmpint (errsv, ==, EILSEQ);
+
+  /* Closing a valid fd really closes it, and preserves errno. */
+  g_test_message ("Closing a valid fd preserves errno...");
+  glnx_opendirat (AT_FDCWD, "/", TRUE, &fd, &error);
+  g_assert_no_error (error);
+  g_assert_cmpint (fd, >=, 0);
+  fd_borrowed = fd;
+  errno = EILSEQ;
+  glnx_close_fd (&fd);
+  errsv = errno;
+  g_assert_cmpint (fd, ==, -1);
+  g_assert_cmpint (errsv, ==, EILSEQ);
+  _glnx_test_assert_fd_was_closed (fd_borrowed);
+}
+
+/* Exercise glnx_close_fd in the case where close() fails.
+ * The only convenient way we can arrange for this to happen is to use
+ * an invalid fd, which is a programming error.
+ *
+ * This function is only run under g_test_undefined(), and assumes the
+ * implementation detail that GLib responds to that programming error
+ * with a critical warning rather than a fatal error. */
+static void
+test_close_ebadf_subprocess (void)
+{
+  g_autoptr(GError) error = NULL;
+  int errsv;
+  int fd = -2;
+  int non_fd;
+
+  /* Preparation: Open a fd, and close it, leaving non_fd set to the
+   * file descriptor number. */
+  glnx_opendirat (AT_FDCWD, "/", TRUE, &fd, &error);
+  g_assert_no_error (error);
+  g_assert_cmpint (fd, >=, 0);
+  close (fd);
+  non_fd = fd;
+  _glnx_test_assert_fd_was_closed (non_fd);
+
+  /* "Closing" the non-fd provokes a critical warning. */
+  g_log_set_always_fatal (G_LOG_FATAL_MASK);
+  g_log_set_fatal_mask ("GLib", G_LOG_FATAL_MASK);
+
+  errno = EILSEQ;
+  glnx_close_fd (&non_fd);
+  errsv = errno;
+  g_assert_cmpint (non_fd, ==, -1);
+
+  /* We preserved errno. */
+  g_assert_cmpint (errsv, ==, EILSEQ);
+  g_print ("Closing invalid fd preserved errno\n");
+}
+
+static void
+test_close_ebadf (void)
+{
+  g_test_summary ("Exercise glnx_close_fd when close() fails");
+
+  /* If close() fails, it still preserves errno.
+   * The only convenient way to make close() fail on-demand is EBADF. */
+
+  if (g_test_subprocess ())
+    {
+      test_close_ebadf_subprocess ();
+      return;
+    }
+
+  if (g_test_undefined ())
+    {
+      g_test_message ("Closing invalid fd preserves errno...");
+
+#if GLIB_CHECK_VERSION (2, 38, 0)
+      g_test_trap_subprocess (NULL, 0, G_TEST_SUBPROCESS_DEFAULT);
+#else
+      if (g_test_trap_fork (0, 0))
+        {
+          test_close_ebadf_subprocess ();
+          _exit (0);
+        }
+#endif
+
+      g_test_trap_assert_passed ();
+      g_test_trap_assert_stdout ("*Closing invalid fd preserved errno*");
+#if !GLIB_CHECK_VERSION(2, 76, 0)
+      /* We can assert that our backport emits this message */
+      g_test_trap_assert_stderr ("*_glnx_close(fd:*) failed with EBADF*");
+#else
+      /* We can't assert anything this specific about GLib's,
+       * but as an implementation detail, it's currently very similar */
+# if 0
+      g_test_trap_assert_stderr ("*g_close(fd:*) failed with EBADF*");
+# endif
+#endif
+    }
+  else
+    {
+      g_test_skip ("Can't test this without provoking undefined behaviour");
+    }
+}
+
 static gboolean
 renameat_test_setup (int *out_srcfd, int *out_destfd,
                      GError **error)
@@ -445,6 +564,8 @@ int main (int argc, char **argv)
 
   g_test_init (&argc, &argv, NULL);
 
+  g_test_add_func ("/close", test_close);
+  g_test_add_func ("/close/ebadf", test_close_ebadf);
   g_test_add_func ("/tmpfile", test_tmpfile);
   g_test_add_func ("/stdio-file", test_stdio_file);
   g_test_add_func ("/filecopy", test_filecopy);
