@@ -26,7 +26,7 @@
 
 #define AUTOFS_SUPER_MAGIC 0x0187 /* man fstatfs */
 
-#define GLNX_CHASE_DEBUG_NO_OPENAT2 (1 << 31)
+#define GLNX_CHASE_DEBUG_NO_OPENAT2 (1U << 31)
 #define GLNX_CHASE_DEBUG_NO_OPEN_TREE (1 << 30)
 
 #define GLNX_CHASE_ALL_DEBUG_FLAGS \

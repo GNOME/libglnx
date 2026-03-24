@@ -14,7 +14,7 @@
 
 #include "libglnx-testlib.h"
 
-#define GLNX_CHASE_DEBUG_NO_OPENAT2 (1 << 31)
+#define GLNX_CHASE_DEBUG_NO_OPENAT2 (1U << 31)
 #define GLNX_CHASE_DEBUG_NO_OPEN_TREE (1 << 30)
 
 const char *test_paths[] = {
