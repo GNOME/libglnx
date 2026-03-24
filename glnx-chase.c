@@ -49,10 +49,13 @@
 typedef GQueue GlnxStatxQueue;
 
 static void
-glnx_statx_queue_push (GlnxStatxQueue *queue,
+glnx_statx_queue_push (GlnxStatxQueue          *queue,
                        const struct glnx_statx *st)
 {
   struct glnx_statx *copy = g_memdup2 (st, sizeof (*st));
+  struct glnx_statx *copy;
+
+  copy = g_memdup2 (st, sizeof (*st));
   g_queue_push_tail (queue, copy);
 }
 
