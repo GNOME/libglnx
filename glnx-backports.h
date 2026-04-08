@@ -80,6 +80,19 @@ g_clear_fd (int     *fd_ptr,
   return _glnx_close (fd, error);
   G_GNUC_END_IGNORE_DEPRECATIONS
 }
+
+#else
+
+static inline gboolean
+_glnx_clear_fd (int     *fd_ptr,
+                GError **error)
+{
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    return g_clear_fd (fd_ptr, error);
+    G_GNUC_END_IGNORE_DEPRECATIONS
+}
+#define g_clear_fd _glnx_clear_fd
+
 #endif
 
 #if !GLIB_CHECK_VERSION(2, 40, 0)
