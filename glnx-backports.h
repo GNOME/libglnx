@@ -95,6 +95,27 @@ _glnx_clear_fd (int     *fd_ptr,
 
 #endif
 
+/* This is part of the backport of g_autofd, but we define it
+ * unconditionally because it's also used to implement glnx_close_fd() */
+static inline void
+_glnx_clear_fd_ignore_error (int *fd_ptr)
+{
+  /* Don't overwrite thread-local errno if closing the fd fails */
+  int errsv = errno;
+
+  if (!g_clear_fd (fd_ptr, NULL))
+    {
+      /* Do nothing: we ignore all errors, except for EBADF which
+       * is a programming error, checked for by g_close(). */
+    }
+
+  errno = errsv;
+}
+
+#if !GLIB_CHECK_VERSION(2, 76, 0)
+#define g_autofd __attribute__((cleanup(_glnx_clear_fd_ignore_error)))
+#endif
+
 #if !GLIB_CHECK_VERSION(2, 40, 0)
 #define g_info(...) g_log (G_LOG_DOMAIN, G_LOG_LEVEL_INFO, __VA_ARGS__)
 #endif
