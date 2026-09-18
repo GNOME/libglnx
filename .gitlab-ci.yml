@@ -2,13 +2,26 @@
 # SPDX-License-Identifier: LGPL-2.0-or-later
 
 variables:
+  SETUP_ARGS: "-Db_sanitize=address,undefined"
   CAN_MESON_DIST: "yes"
 
 stages:
   - build
 
 .deps_fedora: &deps_fedora
-  - dnf install -y gcc git meson ninja-build "pkgconfig(gio-2.0)" "pkgconfig(gio-unix-2.0)" "pkgconfig(glib-2.0)" xz
+  - |
+    dnf install -y \
+      "pkgconfig(gio-2.0)" \
+      "pkgconfig(gio-unix-2.0)" \
+      "pkgconfig(glib-2.0)" \
+      gcc \
+      git \
+      libasan \
+      libubsan \
+      meson \
+      ninja-build \
+      xz \
+      ${NULL+}
 
 .deps_debian: &deps_debian
   - apt-get update
@@ -37,7 +50,7 @@ stages:
   stage: build
   before_script: *deps_fedora
   script:
-    - meson setup _build .
+    - meson setup _build . $SETUP_ARGS
     - ninja -C _build
     - meson test -C _build
     # Run it again! This previously did not work.
@@ -75,6 +88,9 @@ build:steam-runtime1:
   extends: .build
   image: registry.gitlab.steamos.cloud/steamrt/scout/sdk:latest
   before_script: *deps_debian
+  variables:
+    # gcc-4.8 is too old to have useful sanitizers
+    SETUP_ARGS: ""
 
 # Linux 4.19 headers, glibc 2.28, GLib 2.58, Python 3.7, Meson 0.49
 build:debian10:
